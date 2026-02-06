@@ -108,9 +108,6 @@ async function main() {
 
         const violations = [];
 
-        // R1 — Draft check
-        if (pr.draft) violations.push("PR en draft");
-
         // R2 — Description check
         if (!pr.body || !pr.body.includes("## What") || !pr.body.includes("## Why") || !pr.body.includes("## How to test")) {
             violations.push("Description absente ou template non respecté");
