@@ -88,26 +88,19 @@ async function findGuardianComment() {
 
 async function postComment(message) {
     try {
-        // Add timestamp to message with readable format
-        const now = new Date();
-        const locale = config.locale || 'en-US';
-        const timestamp = now.toLocaleString(locale, { 
-            year: 'numeric', 
-            month: 'long', 
-            day: '2-digit', 
-            hour: '2-digit', 
-            minute: '2-digit'
-        });
-        const messageWithTimestamp = `${message}\n\n_Dernière vérification: ${timestamp}_`;
-        
         const existingComment = await findGuardianComment();
         if (existingComment) {
+            // Check if the message is the same as the existing comment to avoid noise
+            if (existingComment.body === message) {
+                console.log(`[Guardian] Le commentaire est à jour, pas de mise à jour nécessaire`);
+                return;
+            }
             console.log(`[Guardian] Mise à jour du commentaire ${existingComment.id}...`);
             await octokit.issues.updateComment({
                 owner,
                 repo,
                 comment_id: existingComment.id,
-                body: messageWithTimestamp,
+                body: message,
             });
             console.log("[Guardian] ✓ Commentaire mis à jour");
         } else {
@@ -116,7 +109,7 @@ async function postComment(message) {
                 owner,
                 repo,
                 issue_number: prNumber,
-                body: messageWithTimestamp,
+                body: message,
             });
             console.log("[Guardian] ✓ Commentaire créé");
         }
@@ -126,6 +119,23 @@ async function postComment(message) {
     }
 }
 
+async function deleteGuardianComment() {
+    try {
+        const existingComment = await findGuardianComment();
+        if (existingComment) {
+            console.log(`[Guardian] Suppression du commentaire ${existingComment.id}...`);
+            await octokit.issues.deleteComment({
+                owner,
+                repo,
+                comment_id: existingComment.id,
+            });
+            console.log("[Guardian] ✓ Commentaire supprimé");
+        }
+    } catch (err) {
+        console.error("[Guardian] Error deleting comment:", err.message);
+        throw err;
+    }
+}
 
 
 async function main() {
@@ -199,10 +209,19 @@ async function main() {
             }
 
             // Count reviewers whose latest review state is APPROVED
+            // Also check for active CHANGES_REQUESTED
             let approvalCount = 0;
+            let changesRequested = false;
             for (const { review } of latestByReviewer.values()) {
-                if (review.state === "APPROVED") approvalCount++;
+                if (review.state === "APPROVED") {
+                    approvalCount++;
+                } else if (review.state === "CHANGES_REQUESTED") {
+                    changesRequested = true;
+                }
             }
+        if (changesRequested) {
+            violations.push("Des demandes de changements sont actives");
+        }
         if (approvalCount < approvalsRequired) {
             violations.push(`Au moins ${approvalsRequired} approbation(s) requise(s)`);
         }
@@ -234,6 +253,7 @@ Action requise : corriger les points ci-dessus avant de merger`;
             console.error("Merge bloqué par guardian\nRègles non respectées :\n- " + violations.join("\n- ") + "\nAction requise : corriger les points ci-dessus avant de merger");
             process.exit(1);
         } else {
+            await deleteGuardianComment();
             console.log("PR conforme au guardian ✅");
         }
     } catch (err) {
