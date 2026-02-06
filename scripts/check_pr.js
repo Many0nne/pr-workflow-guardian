@@ -109,7 +109,7 @@ async function main() {
   // R5 — Label type check
   const typeLabels = config.required_type_labels || ["type: enhancement", "type: fix", "type: refactor", "type: docs", "type: chore"];
   if (!pr.labels.some(l => typeLabels.includes(l.name))) {
-    violations.push("Aucun label de type valide présent");
+    violations.push(`Aucun label de type valide présent. Labels acceptés : ${typeLabels.join(", ")}`);
   }
 
   // Publish result - post comment and fail CI if violations
