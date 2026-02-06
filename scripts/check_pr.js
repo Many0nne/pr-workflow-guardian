@@ -28,8 +28,6 @@ const [owner, repo] = process.env.GITHUB_REPOSITORY.split(':')[0].split('/');
 // GITHUB_REF format for PR: refs/pull/NUMBER/merge
 const prNumber = parseInt(process.env.GITHUB_REF.split('/')[2]);
 
-console.log(`[Guardian] Vérification PR #${prNumber} dans ${owner}/${repo}`);
-
 async function findGuardianComment() {
   const { data: comments } = await octokit.issues.listComments({
     owner,
@@ -40,27 +38,18 @@ async function findGuardianComment() {
 }
 
 async function postOrUpdateComment(message) {
-  const existingComment = await findGuardianComment();
+  // Supprimer l'ancien commentaire s'il existe
+  await deleteGuardianComment();
   
-  if (existingComment) {
-    console.log(`[Guardian] Mise à jour du commentaire ${existingComment.id}...`);
-    await octokit.issues.updateComment({
-      owner,
-      repo,
-      comment_id: existingComment.id,
-      body: message,
-    });
-    console.log("[Guardian] ✓ Commentaire mis à jour");
-  } else {
-    console.log("[Guardian] Création d'un nouveau commentaire...");
-    await octokit.issues.createComment({
-      owner,
-      repo,
-      issue_number: prNumber,
-      body: message,
-    });
-    console.log("[Guardian] ✓ Commentaire créé");
-  }
+  // Créer un nouveau commentaire pour qu'il apparaisse en bas du feed
+  console.log("[Guardian] Création d'un nouveau commentaire...");
+  await octokit.issues.createComment({
+    owner,
+    repo,
+    issue_number: prNumber,
+    body: message,
+  });
+  console.log("[Guardian] ✓ Commentaire créé");
 }
 
 async function deleteGuardianComment() {
@@ -82,8 +71,6 @@ async function main() {
     repo,
     pull_number: prNumber,
   });
-
-  console.log(`[Guardian] PR détectée: draft=${pr.draft}, labels=${pr.labels.map(l => l.name).join(", ")}`);
 
   const violations = [];
 
@@ -118,11 +105,6 @@ async function main() {
   const typeLabels = config.required_type_labels || ["type: feature", "type: fix", "type: refactor", "type: docs", "type: chore"];
   if (!pr.labels.some(l => typeLabels.includes(l.name))) {
     violations.push("Aucun label de type valide présent");
-  }
-
-  console.log(`[Guardian] Violations détectées: ${violations.length}`);
-  if (violations.length > 0) {
-    console.log("[Guardian] Détails:", violations);
   }
 
   // Publish result - post comment and fail CI if violations
