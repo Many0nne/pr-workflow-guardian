@@ -51,15 +51,13 @@ async function postComment(message) {
     try {
         const existingComment = await findGuardianComment();
         if (existingComment) {
-        console.log(`[Guardian] Mise à jour du commentaire existant ${existingComment.id}...`);
-        await octokit.issues.updateComment({
+        console.log(`[Guardian] Suppression du commentaire existant ${existingComment.id}...`);
+        await octokit.issues.deleteComment({
             owner,
             repo,
             comment_id: existingComment.id,
-            body: message,
         });
-        console.log("[Guardian] ✓ Commentaire mis à jour");
-        } else {
+        }
         console.log("[Guardian] Création d'un nouveau commentaire...");
         await octokit.issues.createComment({
             owner,
@@ -68,7 +66,6 @@ async function postComment(message) {
             body: message,
         });
         console.log("[Guardian] ✓ Commentaire créé");
-        }
     } catch (err) {
         console.error("[Guardian] Error posting/updating comment:", err.message);
         throw err;
@@ -140,12 +137,12 @@ async function main() {
         // Publish result - post comment and fail CI if violations
         if (violations.length > 0) {
             const message = `${COMMENT_MARKER}
-            ❌ **Merge bloqué par guardian**
+❌ Merge bloqué par guardian
 
-            Règles non respectées :
-            ${violations.map(v => `- ${v}`).join("\n            ")}
+Règles non respectées :
+${violations.map(v => `- ${v}`).join("\n")}
 
-            Action requise : corriger les points ci-dessus avant de merger`;
+Action requise : corriger les points ci-dessus avant de merger`;
         
             await postComment(message);
             console.error("Merge bloqué par guardian\nRègles non respectées :\n- " + violations.join("\n- ") + "\nAction requise : corriger les points ci-dessus avant de merger");
