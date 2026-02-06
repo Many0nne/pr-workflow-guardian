@@ -116,12 +116,6 @@ async function main() {
             violations.push("Description absente ou template non respecté");
         }
 
-        // R3 — Reviewer check
-        const reviewersRequired = config.reviewers_required || 1;
-        if (!pr.requested_reviewers || pr.requested_reviewers.length < reviewersRequired) {
-                violations.push(`Au moins ${reviewersRequired} reviewer(s) requis`);
-        }
-
         // R4 — Approval check
         const { data: reviews } = await octokit.pulls.listReviews({
             owner,

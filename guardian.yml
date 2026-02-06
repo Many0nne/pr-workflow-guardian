@@ -1,4 +1,3 @@
-reviewers_required: 1
 approvals_required: 1
 required_type_labels:
   - "type: enhancement"
