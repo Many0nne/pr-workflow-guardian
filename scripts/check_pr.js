@@ -81,14 +81,11 @@ async function deleteComment() {
     if (existing) await octokit.issues.deleteComment({ owner, repo, comment_id: existing.id });
 }
 
-async function getLinkedGitHubIssues() {
-    // PR timeline events to detect linked issues
-    try {
-        const { data: events } = await octokit.issues.listEventsForTimeline({ owner, repo, issue_number: prNumber });
-        return events.filter(e => e.event === 'connected');
-    } catch {
-        return [];
-    }
+function extractLinkedIssuesFromBody(body) {
+    // Extract GitHub issue references (#123) from PR body
+    const regex = /#(\d+)/g;
+    const matches = [...(body?.matchAll(regex) || [])];
+    return matches.map(m => parseInt(m[1], 10));
 }
 
 async function main() {
@@ -166,9 +163,9 @@ async function main() {
         if (config.require_ticket_reference ?? true) {
             const patterns = config.ticket_patterns ?? ["PROJ-\\d+","LINEAR-\\w+","JIRA-\\d+","CU-\\d+"];
             let hasTicket = patterns.some(p => new RegExp(p).test(pr.body ?? ''));
-            if (!hasTicket) {
-                const linkedIssues = await getLinkedGitHubIssues();
-                if (!linkedIssues.length) violations.push(`Aucun ticket externe ni GitHub issue lié détecté (ex: ${patterns.slice(0,2).join(', ')})`);
+            const linkedIssues = extractLinkedIssuesFromBody(pr.body);
+            if (!hasTicket && linkedIssues.length === 0) {
+                violations.push(`Aucun ticket externe ni GitHub issue lié détecté (ex: ${patterns.slice(0,2).join(', ')})`);
             }
         }
 
