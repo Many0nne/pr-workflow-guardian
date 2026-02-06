@@ -1,0 +1,22 @@
+name: Guardian PR check
+
+on:
+  pull_request:
+    types: [opened, ready_for_review, edited, reopened, synchronize]
+
+jobs:
+  check-pr:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '24'
+
+      - name: Run PR Guardian
+        run: node scripts/check_pr.js
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

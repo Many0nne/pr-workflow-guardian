@@ -1,0 +1,9 @@
+reviewers_required: 1
+approvals_required: 1
+required_type_labels:
+  - "type: feature"
+  - "type: fix"
+  - "type: refactor"
+  - "type: docs"
+  - "type: chore"
+description_template: ".github/PULL_REQUEST_TEMPLATE.md"
