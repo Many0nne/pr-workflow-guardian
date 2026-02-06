@@ -88,54 +88,37 @@ async function findGuardianComment() {
 
 async function postComment(message) {
     try {
+        // Add timestamp to message
+        const timestamp = new Date().toISOString();
+        const messageWithTimestamp = `${message}\n\n_Dernière vérification: ${timestamp}_`;
+        
         const existingComment = await findGuardianComment();
         if (existingComment) {
-        console.log(`[Guardian] Mise à jour du commentaire ${existingComment.id}...`);
-        await octokit.issues.updateComment({
-            owner,
-            repo,
-            comment_id: existingComment.id,
-            body: message,
-        });
-        // Supprimer et recréer pour faire remonter le commentaire au top
-        console.log(`[Guardian] Suppression du commentaire pour le remonter...`);
-        await octokit.issues.deleteComment({
-            owner,
-            repo,
-            comment_id: existingComment.id,
-        });
+            console.log(`[Guardian] Mise à jour du commentaire ${existingComment.id}...`);
+            await octokit.issues.updateComment({
+                owner,
+                repo,
+                comment_id: existingComment.id,
+                body: messageWithTimestamp,
+            });
+            console.log("[Guardian] ✓ Commentaire mis à jour");
+        } else {
+            console.log("[Guardian] Création d'un nouveau commentaire...");
+            await octokit.issues.createComment({
+                owner,
+                repo,
+                issue_number: prNumber,
+                body: messageWithTimestamp,
+            });
+            console.log("[Guardian] ✓ Commentaire créé");
         }
-        console.log("[Guardian] Création d'un nouveau commentaire...");
-        await octokit.issues.createComment({
-            owner,
-            repo,
-            issue_number: prNumber,
-            body: message,
-        });
-        console.log("[Guardian] ✓ Commentaire créé");
     } catch (err) {
         console.error("[Guardian] Error posting/updating comment:", err.message);
         throw err;
     }
 }
 
-async function deleteGuardianComment() {
-    try {
-        const existingComment = await findGuardianComment();
-        if (existingComment) {
-        console.log(`[Guardian] Suppression du commentaire ${existingComment.id}...`);
-        await octokit.issues.deleteComment({
-            owner,
-            repo,
-            comment_id: existingComment.id,
-        });
-        console.log("[Guardian] ✓ Commentaire supprimé");
-        }
-    } catch (err) {
-        console.error("[Guardian] Error deleting comment:", err.message);
-        throw err;
-    }
-}
+
 
 async function main() {
     try {
@@ -217,7 +200,7 @@ async function main() {
         }
 
         // R5 — Label type check
-        const typeLabels = config.required_type_labels || ["type: enhancement", "type: fix", "type: refactor", "type: docs", "type: chore"];
+        const typeLabels = config.required_type_labels || ["type: enhancement", "type: fix", "type: refactor", "type: docs"];
         const acceptedTypes = typeLabels.map(t => t.replace(/^type: /, ''));
         if (!pr.labels.some(l => acceptedTypes.includes(l.name.replace(/^type: /, '')))) {
             violations.push(`Aucun label de type valide présent. Labels acceptés : ${acceptedTypes.join(", ")}`);
@@ -243,7 +226,6 @@ Action requise : corriger les points ci-dessus avant de merger`;
             console.error("Merge bloqué par guardian\nRègles non respectées :\n- " + violations.join("\n- ") + "\nAction requise : corriger les points ci-dessus avant de merger");
             process.exit(1);
         } else {
-            await deleteGuardianComment();
             console.log("PR conforme au guardian ✅");
         }
     } catch (err) {

@@ -4,7 +4,6 @@ required_type_labels:
   - "type: fix"
   - "type: refactor"
   - "type: docs"
-  - "type: chore"
 description_template: ".github/PULL_REQUEST_TEMPLATE.md"
 # Markdown section checks
 min_md_sections: 3
