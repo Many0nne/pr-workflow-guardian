@@ -172,7 +172,12 @@ rules:
     
     examples:
       bad: "No ticket reference in PR body"
-      good: "Closes #456" or "Resolves PROJ-123" or "Addresses LINEAR-abc123"
+      good: |
+        Closes #456
+        or
+        Resolves PROJ-123
+        or
+        Address LINEAR-xyz
 
   # ---- CI Checks ----
   ci_checks:
@@ -185,7 +190,10 @@ rules:
     require_pass: true
     soft_warnings: true  # Warn on pending, block on failed
     examples:
-      bad: "Linting failed" or "Tests failed"
+      bad: |
+        "Linting failed" 
+        or 
+        "Tests failed"
       good: "All checks passed (tests ✓, lint ✓, build ✓)"
 
   # ---- Review Status ----
