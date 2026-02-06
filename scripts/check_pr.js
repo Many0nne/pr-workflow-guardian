@@ -173,15 +173,21 @@ async function main() {
         }
 
         // --- Publish ---
-        const allViolations = [...violations, ...softViolations];
-        const checksum = generateChecksum(allViolations);
-        if (allViolations.length) {
-            const message = `❌ Merge bloqué par guardian\n\nRègles non respectées:\n${allViolations.map(v => `- ${v}`).join("\n")}`;
-            await postComment(message, checksum);
-            if (violations.length) {
-                console.error("Merge bloqué :", violations.join(' | '));
-                process.exit(1);
+        const checksum = generateChecksum(violations); // For checksum, only consider blocking violations
+        
+        if (violations.length) {
+            let message = `❌ Merge bloqué par guardian\n\nRègles non respectées:\n${violations.map(v => `- ${v}`).join("\n")}`;
+            
+            if (softViolations.length) {
+                message += `\n\n⚠️ Avertissements:\n${softViolations.map(v => `- ${v}`).join("\n")}`;
             }
+            
+            await postComment(message, checksum);
+            console.error("Merge bloqué :", violations.join(' | '));
+            process.exit(1);
+        } else if (softViolations.length) {
+            // Only non-blocking warnings, don't post a comment
+            console.warn("Avertissements ⚠️:", softViolations.join(' | '));
         } else {
             await deleteComment();
             console.log("PR conforme au guardian ✅");
