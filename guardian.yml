@@ -1,7 +1,6 @@
-reviewers_required: 1
-approvals_required: 1
+approvals_required: 0
 required_type_labels:
-  - "type: feature"
+  - "type: enhancement"
   - "type: fix"
   - "type: refactor"
   - "type: docs"

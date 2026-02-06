@@ -1,6 +1,9 @@
 {
+  "name": "pr-workflow-guard",
+  "version": "1.0.0",
+  "type": "module",
   "dependencies": {
     "js-yaml": "^4.1.0",
-    "@octokit/rest": "latest"
+    "@octokit/rest": "^21.0.0"
   }
 }
