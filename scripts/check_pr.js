@@ -24,7 +24,7 @@ try {
 
 const octokit = new Octokit({ auth: token });
 
-const [owner, repo] = process.env.GITHUB_REPOSITORY.split(':')[0].split('/');
+const [owner, repo] = process.env.GITHUB_REPOSITORY.split("/");
 // GITHUB_REF format for PR: refs/pull/NUMBER/merge
 const prNumber = parseInt(process.env.GITHUB_REF.split('/')[2]);
 
@@ -36,9 +36,9 @@ if (isNaN(prNumber)) {
 async function findGuardianComment() {
     try {
         const { data: comments } = await octokit.issues.listComments({
-        owner,
-        repo,
-        issue_number: prNumber,
+            owner,
+            repo,
+            issue_number: prNumber,
         });
         return comments.find(c => c.body?.includes(COMMENT_MARKER));
     } catch (err) {
@@ -51,7 +51,15 @@ async function postComment(message) {
     try {
         const existingComment = await findGuardianComment();
         if (existingComment) {
-        console.log(`[Guardian] Suppression du commentaire existant ${existingComment.id}...`);
+        console.log(`[Guardian] Mise à jour du commentaire ${existingComment.id}...`);
+        await octokit.issues.updateComment({
+            owner,
+            repo,
+            comment_id: existingComment.id,
+            body: message,
+        });
+        // Supprimer et recréer pour faire remonter le commentaire au top
+        console.log(`[Guardian] Suppression du commentaire pour le remonter...`);
         await octokit.issues.deleteComment({
             owner,
             repo,
@@ -93,9 +101,9 @@ async function deleteGuardianComment() {
 async function main() {
     try {
         const { data: pr } = await octokit.pulls.get({
-        owner,
-        repo,
-        pull_number: prNumber,
+            owner,
+            repo,
+            pull_number: prNumber,
         });
 
         const violations = [];
@@ -164,7 +172,4 @@ Action requise : corriger les points ci-dessus avant de merger`;
     }
 }
 
-main().catch(err => {
-    console.error(err);
-    process.exit(1);
-});
+main();
