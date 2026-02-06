@@ -123,7 +123,7 @@ async function main() {
             pull_number: prNumber,
         });
 
-        const approvalsRequired = config.approvals_required || 1;
+        const approvalsRequired = config.approvals_required !== undefined ? config.approvals_required : 1;
         const approvalCount = reviews.filter(r => r.state === "APPROVED").length;
         if (approvalCount < approvalsRequired) {
             violations.push(`Au moins ${approvalsRequired} approbation(s) requise(s)`);
