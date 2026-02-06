@@ -10,3 +10,12 @@ min_md_sections: 3
 min_section_chars: 20
 md_heading_level: 2
 min_assignees: 1
+# CI checks validation
+require_ci_pass: true
+# Ticket/Issue validation
+ticket_patterns:
+  - "PROJ-\\d+"
+  - "LINEAR-\\w+"
+  - "JIRA-\\d+"
+  - "CU-\\d+"
+require_ticket_reference: true
