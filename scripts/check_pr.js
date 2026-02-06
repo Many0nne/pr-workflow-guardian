@@ -118,9 +118,9 @@ function isGenericTitle(title) {
 
 function extractSectionContent(body, heading) {
     // Extract content after a heading until the next heading or end
-    const regex = new RegExp(`^## ${heading}\\s*$([\\s\\S]*?)(?=^##|\\Z)`, 'im');
+    const regex = new RegExp(`^##\\s+(${heading})\\s*$([\\s\\S]*?)(?=^##|\\Z)`, 'im');
     const match = body?.match(regex);
-    return match?.[1]?.trim() || '';
+    return match?.[2]?.trim() || '';
 }
 
 function formatViolationMessage(violations, softViolations) {
@@ -302,14 +302,15 @@ async function main() {
         if (labelsConfig?.enabled) {
             const requiredLabels = labelsConfig.required_labels || [];
             const prLabels = pr.labels?.map(l => l.name) || [];
-            const hasTypeLabel = requiredLabels.some(req => prLabels.includes(req));
+            const requiredLabelValues = requiredLabels.map(l => l.replace('type: ', '').trim());
+            const hasTypeLabel = requiredLabelValues.some(req => prLabels.includes(req));
 
             if (!hasTypeLabel) {
                 violations.push(new Violation(
                     'Type Labels',
                     `No valid type label found. PR has: ${prLabels.length === 0 ? 'none' : prLabels.join(', ')}`,
                     labelsConfig.severity,
-                    `Add one of: ${requiredLabels.join(', ')}`
+                    `Add one of: ${requiredLabelValues.join(', ')}`
                 ));
             }
         }
