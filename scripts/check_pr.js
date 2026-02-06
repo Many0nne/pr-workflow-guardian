@@ -23,7 +23,8 @@ try {
 const octokit = new Octokit({ auth: token });
 
 const [owner, repo] = process.env.GITHUB_REPOSITORY.split(':')[0].split('/');
-const prNumber = process.env.GITHUB_REF.split('/').pop();
+// GITHUB_REF format for PR: refs/pull/NUMBER/merge
+const prNumber = parseInt(process.env.GITHUB_REF.split('/')[2]);
 
 async function main() {
   const { data: pr } = await octokit.pulls.get({
