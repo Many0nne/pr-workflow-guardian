@@ -14,8 +14,8 @@ min_assignees: 1
 require_ci_pass: true
 # Ticket/Issue validation
 ticket_patterns:
-  - "PROJ-\\d+"
-  - "LINEAR-\\w+"
-  - "JIRA-\\d+"
-  - "CU-\\d+"
+  - "PROJ-\\d+" # need to be adapted, does not actually work (never checked an actual link)
+  - "LINEAR-\\w+" # need to be adapted, does not actually work (never checked an actual link)
+  - "[A-Z]+-\\d+"
+  - "CU-\\d+" # need to be adapted, does not actually work (never checked an actual link)
 require_ticket_reference: true

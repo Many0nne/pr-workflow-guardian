@@ -161,7 +161,7 @@ async function main() {
 
         // --- Ticket / Issue validation ---
         if (config.require_ticket_reference ?? true) {
-            const patterns = config.ticket_patterns ?? ["PROJ-\\d+","LINEAR-\\w+","JIRA-\\d+","CU-\\d+"];
+            const patterns = config.ticket_patterns ?? ["PROJ-\\d+","LINEAR-\\w+","[A-Z]+-\\d+","CU-\\d+"];
             let hasTicket = patterns.some(p => new RegExp(p).test(pr.body ?? ''));
             const linkedIssues = extractLinkedIssuesFromBody(pr.body);
             if (!hasTicket && linkedIssues.length === 0) {
