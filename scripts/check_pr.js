@@ -88,8 +88,16 @@ async function findGuardianComment() {
 
 async function postComment(message) {
     try {
-        // Add timestamp to message
-        const timestamp = new Date().toISOString();
+        // Add timestamp to message with readable format
+        const now = new Date();
+        const locale = config.locale || 'en-US';
+        const timestamp = now.toLocaleString(locale, { 
+            year: 'numeric', 
+            month: 'long', 
+            day: '2-digit', 
+            hour: '2-digit', 
+            minute: '2-digit'
+        });
         const messageWithTimestamp = `${message}\n\n_Dernière vérification: ${timestamp}_`;
         
         const existingComment = await findGuardianComment();
