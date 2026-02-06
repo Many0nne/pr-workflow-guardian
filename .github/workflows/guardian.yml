@@ -2,7 +2,7 @@ name: Guardian PR check
 
 on:
   pull_request:
-    types: [opened, ready_for_review, edited, reopened, synchronize, assigned]
+    types: [opened, reopened, ready_for_review, edited, reopened, synchronize, assigned, unassigned, labeled, unlabeled]
 
 permissions:
   contents: read
