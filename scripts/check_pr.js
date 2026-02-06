@@ -28,6 +28,11 @@ const [owner, repo] = process.env.GITHUB_REPOSITORY.split(':')[0].split('/');
 // GITHUB_REF format for PR: refs/pull/NUMBER/merge
 const prNumber = parseInt(process.env.GITHUB_REF.split('/')[2]);
 
+if (isNaN(prNumber)) {
+  console.error("Invalid GITHUB_REF format or PR number could not be parsed");
+  process.exit(1);
+}
+
 async function findGuardianComment() {
   const { data: comments } = await octokit.issues.listComments({
     owner,
