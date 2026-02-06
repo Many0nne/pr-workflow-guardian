@@ -30,8 +30,5 @@ Include screenshots or GIFs for UI changes.
 - [ ] No new warnings or errors have been introduced
 - [ ] I have reviewed my own changes
 
-## Breaking Changes
-Describe any breaking changes or migrations needed.
-
 ## Additional Context
 Any additional information that reviewers should know.

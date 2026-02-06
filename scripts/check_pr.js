@@ -24,12 +24,51 @@ try {
 
 const octokit = new Octokit({ auth: token });
 
-const [owner, repo] = process.env.GITHUB_REPOSITORY.split("/");
-// GITHUB_REF format for PR: refs/pull/NUMBER/merge
-const prNumber = parseInt(process.env.GITHUB_REF.split('/')[2]);
+// Determine repository owner/repo and PR number from the event payload when possible.
+// Prefer `GITHUB_EVENT_PATH` (reliable across event types, forks and runners).
+let owner;
+let repo;
+let prNumber;
+let eventPayload = null;
+const eventPath = process.env.GITHUB_EVENT_PATH;
+if (eventPath) {
+    try {
+        eventPayload = JSON.parse(fs.readFileSync(eventPath, 'utf8'));
+        if (eventPayload && eventPayload.repository) {
+            owner = eventPayload.repository.owner && eventPayload.repository.owner.login;
+            repo = eventPayload.repository.name;
+        }
+        if (eventPayload && eventPayload.pull_request && typeof eventPayload.pull_request.number === 'number') {
+            prNumber = eventPayload.pull_request.number;
+        } else if (eventPayload && eventPayload.issue && typeof eventPayload.issue.number === 'number') {
+            prNumber = eventPayload.issue.number;
+        } else if (typeof eventPayload.number === 'number') {
+            prNumber = eventPayload.number;
+        }
+    } catch (err) {
+        console.warn("[Guardian] Could not read/parse GITHUB_EVENT_PATH:", err.message);
+    }
+}
 
-if (isNaN(prNumber)) {
-    console.error("Invalid GITHUB_REF format or PR number could not be parsed");
+// If owner/repo not available from event, fallback to GITHUB_REPOSITORY
+if (!owner || !repo) {
+    if (process.env.GITHUB_REPOSITORY) {
+        const parts = process.env.GITHUB_REPOSITORY.split('/');
+        owner = parts[0];
+        repo = parts[1];
+    }
+}
+
+// Fallback: try to extract PR number from GITHUB_REF (less reliable)
+if (!prNumber && process.env.GITHUB_REF) {
+    const refParts = process.env.GITHUB_REF.split('/');
+    if (refParts.length >= 3 && refParts[1] === 'pull') {
+        prNumber = parseInt(refParts[2], 10);
+    }
+}
+
+if (!prNumber || isNaN(prNumber) || !owner || !repo) {
+    console.error("PR number or repository could not be determined from GITHUB_EVENT_PATH or environment variables");
     process.exit(1);
 }
 
@@ -108,9 +147,37 @@ async function main() {
 
         const violations = [];
 
-        // R2 — Description check
-        if (!pr.body || !pr.body.includes("## What") || !pr.body.includes("## Why") || !pr.body.includes("## How to test")) {
-            violations.push("Description absente ou template non respecté");
+        // R2 — Description check (intention-based, configurable)
+        // Configuration (defaults)
+        const minSections = config.min_md_sections !== undefined ? config.min_md_sections : 3;
+        const minSectionChars = config.min_section_chars !== undefined ? config.min_section_chars : 20;
+        const headingLevel = config.md_heading_level !== undefined ? config.md_heading_level : 2;
+        const headingPrefix = '#'.repeat(headingLevel);
+
+        if (!pr.body || !pr.body.trim()) {
+            violations.push("Description absente");
+        } else {
+            // accept headings with or without a space after the hashes ("##Title" or "## Title")
+            const headingRegex = new RegExp(`^${headingPrefix}\\s*.*$`, 'gm');
+            const headings = [];
+            let match;
+            while ((match = headingRegex.exec(pr.body)) !== null) {
+                headings.push({ index: match.index, text: match[0] });
+            }
+
+            if (headings.length < minSections) {
+                violations.push(`La description doit contenir au moins ${minSections} sections de niveau ${headingPrefix}`);
+            } else {
+                for (let i = 0; i < headings.length; i++) {
+                    const start = headings[i].index + headings[i].text.length;
+                    const end = i + 1 < headings.length ? headings[i + 1].index : pr.body.length;
+                    const sectionContent = pr.body.slice(start, end).replace(/\r/g, '').trim();
+                    if (sectionContent.length < minSectionChars) {
+                        const title = headings[i].text.replace(/^#+\s*/, '').trim();
+                        violations.push(`La section "${title || 'non titrée'}" contient moins de ${minSectionChars} caractères`);
+                    }
+                }
+            }
         }
 
         // R4 — Approval check
@@ -119,9 +186,32 @@ async function main() {
             repo,
             pull_number: prNumber,
         });
+            const approvalsRequired = config.approvals_required !== undefined ? config.approvals_required : 1;
 
-        const approvalsRequired = config.approvals_required !== undefined ? config.approvals_required : 1;
-        const approvalCount = reviews.filter(r => r.state === "APPROVED").length;
+            // Build a map of reviewer -> their latest review (by `submitted_at`).
+            // This ensures we count only the last state from each reviewer and ignore earlier approvals
+            // that were later superseded by a 'CHANGES_REQUESTED' or 'DISMISSED'.
+            const latestByReviewer = new Map();
+            for (const r of reviews) {
+                const login = r.user && r.user.login ? r.user.login : null;
+                if (!login) continue;
+                const submitted = r.submitted_at ? new Date(r.submitted_at) : null;
+                const existing = latestByReviewer.get(login);
+                if (!existing) {
+                    latestByReviewer.set(login, { review: r, submitted });
+                } else {
+                    const existingSubmitted = existing.submitted;
+                    if (!existingSubmitted || (submitted && submitted > existingSubmitted)) {
+                        latestByReviewer.set(login, { review: r, submitted });
+                    }
+                }
+            }
+
+            // Count reviewers whose latest review state is APPROVED
+            let approvalCount = 0;
+            for (const { review } of latestByReviewer.values()) {
+                if (review.state === "APPROVED") approvalCount++;
+            }
         if (approvalCount < approvalsRequired) {
             violations.push(`Au moins ${approvalsRequired} approbation(s) requise(s)`);
         }
@@ -131,6 +221,12 @@ async function main() {
         const acceptedTypes = typeLabels.map(t => t.replace(/^type: /, ''));
         if (!pr.labels.some(l => acceptedTypes.includes(l.name.replace(/^type: /, '')))) {
             violations.push(`Aucun label de type valide présent. Labels acceptés : ${acceptedTypes.join(", ")}`);
+        }
+
+        // R6 — Assignment check (PR must be assigned to at least N people, configurable)
+        const minAssignees = config.min_assignees !== undefined ? config.min_assignees : 1;
+        if (!pr.assignees || pr.assignees.length < minAssignees) {
+            violations.push(`La PR doit être assignée à au moins ${minAssignees} personne(s)`);
         }
 
         // Publish result - post comment and fail CI if violations
