@@ -1,21 +1,221 @@
-approvals_required: 0
-required_type_labels:
-  - "type: enhancement"
-  - "type: fix"
-  - "type: refactor"
-  - "type: docs"
-description_template: ".github/PULL_REQUEST_TEMPLATE.md"
-# Markdown section checks
-min_md_sections: 3
-min_section_chars: 20
-md_heading_level: 2
-min_assignees: 1
-# CI checks validation
-require_ci_pass: true
-# Ticket/Issue validation
-ticket_patterns:
-  - "PROJ-\\d+" # need to be adapted, does not actually work (never checked an actual link)
-  - "LINEAR-\\w+" # need to be adapted, does not actually work (never checked an actual link)
-  - "[A-Z]+-\\d+"
-  - "CU-\\d+" # need to be adapted, does not actually work (never checked an actual link)
-require_ticket_reference: true
+# ============================================
+# GUARDIAN PR CONFIGURATION
+# ============================================
+# Each rule defines team expectations and is enforced consistently.
+# Goals: Ensure clarity, traceability, and quality in PR descriptions.
+# ============================================
+
+rules:
+  # ---- Description Structure ----
+  description_structure:
+    enabled: true
+    severity: block
+    description: |
+      PR descriptions must be structured with clear sections at the specified heading level.
+      This ensures reviewers can quickly understand what, why, and how to test changes.
+    
+    config:
+      min_sections: 3
+      min_chars_per_section: 30
+      heading_level: 2  # ## for level 2
+    
+    # What to check
+    validation:
+      reject_empty: true
+      reject_placeholders: true  # TODO, N/A, etc.
+      reject_generic_content: false
+    
+    examples:
+      bad: |
+        ## What
+        Fixed bug
+        ## Why
+        Because
+        ## How to test
+        Test it
+      good: |
+        ## What
+        Fixed race condition in cache invalidation that caused stale data to be served for 5 minutes
+        ## Why
+        Users reported inconsistent product prices. Root cause: cache TTL not being refreshed on inventory updates
+        ## How to test
+        1. Start local server with CACHE_TTL=5m
+        2. Update inventory in admin panel
+        3. Verify new prices appear within 10 seconds
+  
+  # ---- Title Quality ----
+  title_quality:
+    enabled: true
+    severity: block
+    description: |
+      PR titles must be descriptive and specific.
+      Generic titles make it impossible to scan PR lists.
+      Titles must be at least 10 characters and describe the actual change.
+    
+    config:
+      min_length: 10
+      max_length: 100
+      reject_generic: true  # "fix", "update", "stuff", "thing"
+    
+    examples:
+      bad: ["fix", "update", "stuff", "Fix: more", "Update: typo"]
+      good: ["fix: race condition in cache invalidation", "feat: add OAuth2 support", "refactor: extract payment validation logic"]
+
+  # ---- Type Labels ----
+  type_labels:
+    enabled: true
+    severity: block
+    description: |
+      At least one type label must be present to categorize the change.
+      This makes PR history filterable and searchable.
+    
+    required_labels:
+      - "type: enhancement"
+      - "type: fix"
+      - "type: refactor"
+      - "type: docs"
+      - "type: chore"
+    
+    examples:
+      bad: "No labels, or only 'priority: high' without type label"
+      good: "'type: fix' or 'type: enhancement' or 'type: refactor'"
+
+  # ---- Title-Label-Content Coherence ----
+  coherence_check:
+    enabled: true
+    severity: block
+    description: |
+      Title, labels, and PR content must align.
+      If labeled as 'type: fix', the title should indicate a problem being fixed.
+      Prevents misleading PR listings.
+    
+    validation:
+      title_must_reflect_type: true  # "fix:" in title if type: fix
+      title_min_specificity: true    # Not just "fix: bug"
+    
+    examples:
+      bad: |
+        Title: "Update stuff"
+        Labels: "type: fix"
+        Content: About refactoring
+      good: |
+        Title: "fix: prevent division by zero in tax calculator"
+        Labels: "type: fix"
+        Content: Describes the bug and impact
+
+  # ---- Approvals ----
+  approvals:
+    enabled: true
+    severity: block
+    description: |
+      Minimum number of approvals required before merge.
+      Ensures peer review happens systematically.
+    
+    required: 1  # Change to 0 if solo
+    examples:
+      bad: "0 approvals, ready to merge alone"
+      good: "At least 1 approval from another team member"
+
+  # ---- Assignees ----
+  assignees:
+    enabled: true
+    severity: warn  # Non-blocking, but visible
+    description: |
+      At least one assignee makes ownership clear.
+      Prevents PRs from disappearing in the queue.
+    
+    minimum: 1
+    examples:
+      bad: "Unassigned PR"
+      good: "Assigned to @developer or team"
+
+  # ---- How to Test Section ----
+  test_instructions:
+    enabled: true
+    severity: block
+    description: |
+      "How to Test" section must include actionable steps.
+      Prevents copy-paste instructions and ensures testability.
+    
+    validation:
+      must_exist: true
+      min_length: 50
+      must_have_action_verbs: true  # Start, run, click, etc.
+      reject_placeholders: true  # Reject "TODO", "N/A", "same as before"
+      reject_generic: true       # Reject "Test it", "Just test"
+    
+    examples:
+      bad: |
+        ## How to test
+        Test it
+      good: |
+        ## How to test
+        1. Start the local dev server: `npm run dev`
+        2. Navigate to /settings/privacy
+        3. Toggle "Share anonymized analytics"
+        4. Verify localStorage contains `analytics_consent: false`
+        5. Refresh page and confirm toggle remains off
+
+  # ---- Ticket References ----
+  ticket_reference:
+    enabled: true
+    severity: block
+    description: |
+      PR must reference an external ticket or GitHub issue.
+      Ensures traceability between code and requirements/tracking.
+    
+    patterns:
+      - "PROJ-\\d+"          # Project tracking system
+      - "LINEAR-\\w+"        # Linear.app issues
+      - "[A-Z]+-\\d+"        # Generic Jira-like
+      - "#\\d+"              # GitHub issue: #123
+    
+    examples:
+      bad: "No ticket reference in PR body"
+      good: "Closes #456" or "Resolves PROJ-123" or "Addresses LINEAR-abc123"
+
+  # ---- CI Checks ----
+  ci_checks:
+    enabled: true
+    severity: block
+    description: |
+      All CI checks must pass before merge.
+      Ensures automated tests and lints don't fail.
+    
+    require_pass: true
+    soft_warnings: true  # Warn on pending, block on failed
+    examples:
+      bad: "Linting failed" or "Tests failed"
+      good: "All checks passed (tests ✓, lint ✓, build ✓)"
+
+  # ---- Review Status ----
+  review_status:
+    enabled: true
+    severity: block
+    description: |
+      No active "Changes Requested" reviews allowed.
+      Feedback must be resolved before merge.
+    
+    examples:
+      bad: "1 approval, but 1 'Changes Requested' still open"
+      good: "1 approval, all feedback resolved"
+
+# ---- Override Mechanism ----
+override:
+  enabled: true
+  label: "guardian:override"
+  description: |
+    Apply this label to override a specific blocker with justification.
+    A comment explaining why the override is acceptable is required.
+    Visible in merge history for accountability.
+  
+  required_comment_keywords:
+    - "reason"
+    - "accept_risk"
+    - "exception"
+  
+  examples:
+    good: |
+      Label: guardian:override
+      Comment: "reason: Emergency hotfix for production outage. 
+                Accept risk of skipping tests for 30min window."
