@@ -9,8 +9,8 @@ Guardian PR is a GitHub Action tool designed to block merges of PRs that don't c
 - **Type Labels** – At least one valid type label must be present
 - **Assignees** – Minimum number of assignees required (configurable)
 - **CI Checks** – All CI checks must pass (optional, configurable)
-- **Ticket References** – PR must reference a ticket/issue (optional, supports multiple patterns)  - **Detection Method** – Supports both explicit mentions in PR body (#123) and issues linked via GitHub UI
-  - **GraphQL Integration** – Uses GitHub's GraphQL API to detect issues linked through the interface- **No Active Changes Requested** – All review feedback must be resolved
+- **Ticket References** – PR must reference a ticket/issue (optional, supports multiple patterns)
+- **No Active Changes Requested** – All review feedback must be resolved
 
 ## Consequences of Non-Compliance
 
@@ -132,7 +132,7 @@ If all rules are respected:
 - **Assignee Check** – At least `min_assignees` assignees must be assigned
 - **Review Status Check** – No active "Changes Requested" reviews allowed
 - **CI Checks** (optional) – All CI/CD checks must pass (if `require_ci_pass: true`)
-- **Ticket Reference Check** (optional) – PR description must contain a ticket reference matching configured patterns, or be linked to a GitHub issue (if `require_ticket_reference: true`)
+- **Ticket Reference Check** (optional) – PR description must contain a ticket reference matching configured patterns (if `require_ticket_reference: true`)
 
 ⚠️ Soft warnings (non-blocking):
 - CI checks pending/in-progress (warning only, doesn't block)
@@ -149,22 +149,14 @@ Guardian validates the structure and content of PR descriptions:
 
 Example: With `min_md_sections: 3`, `min_section_chars: 20`, and `md_heading_level: 2`, a PR description must have at least 3 `##` sections, each with at least 20 non-whitespace characters.
 
-## Ticket / Issue Detection
+## Ticket / Issue References
 
-Guardian uses **dual detection methods** for linked issues:
+Guardian detects ticket and issue references in the PR body:
 
-### Method 1: PR Body References
-Explicit mentions in the PR description:
-- `#123` – GitHub issue references
-- `PROJ-456` – External ticket patterns (configurable)
+- **GitHub Issues** – References like `#123` in the PR description
+- **External Tickets** – Patterns like `PROJ-456`, `JIRA-123`, etc. (configurable in `ticket_patterns`)
 
-### Method 2: GraphQL Query (UI Links)
-Guardian queries GitHub's GraphQL API to detect issues linked via the GitHub UI:
-- When you link an issue through the "Link issue" button in GitHub
-- Uses `closingIssuesReferences` query to get all linked issues
-- Works independently of PR body content
-
-**Why GraphQL?** GitHub's UI "Link issue" action doesn't modify the PR body or trigger an edit event. Using GraphQL ensures Guardian detects these links regardless of how they were created.
+At least one valid reference must be present if `require_ticket_reference: true` in `guardian.yml`.
 
 ## Notes for Solo Repositories
 
@@ -198,10 +190,3 @@ All rules can be customized in `guardian.yml`:
 - **No quality judgment** – Only factual checks, no recommendations are made
 - **Pending CI checks** – Soft warning only; doesn't block if in progress
 - **PR draft status** – Checks still run on draft PRs (set workflow trigger types to filter if needed)
-- **Workflow triggers** – The `issues.connected` event type may not trigger the workflow on all GitHub instances; ensure `pull_request.edited` is present for maximum compatibility
-
-## Performance Notes
-
-- GraphQL queries for linked issues are executed asynchronously and include error handling
-- If the GraphQL query fails, Guardian falls back to PR body detection only
-- Timestamps for linked issues are available but not used in validation

@@ -88,39 +88,6 @@ function extractLinkedIssuesFromBody(body) {
     return matches.map(m => parseInt(m[1], 10));
 }
 
-async function getLinkedIssuesViaGraphQL() {
-    // Query GitHub's GraphQL to get issues linked via UI
-    const query = `
-        query($owner:String!, $repo:String!, $number:Int!) {
-            repository(owner:$owner, name:$repo) {
-                pullRequest(number:$number) {
-                    closingIssuesReferences(first:10) {
-                        nodes {
-                            number
-                            state
-                        }
-                    }
-                }
-            }
-        }
-    `;
-    
-    try {
-        const result = await octokit.graphql({
-            query,
-            owner,
-            repo,
-            number: prNumber
-        });
-        
-        const issues = result.repository?.pullRequest?.closingIssuesReferences?.nodes || [];
-        return issues.map(issue => issue.number);
-    } catch (err) {
-        console.warn("GraphQL query failed:", err.message);
-        return [];
-    }
-}
-
 async function main() {
     try {
         const { data: pr } = await octokit.pulls.get({ owner, repo, pull_number: prNumber });
@@ -196,13 +163,8 @@ async function main() {
         if (config.require_ticket_reference ?? true) {
             const patterns = config.ticket_patterns ?? ["PROJ-\\d+","LINEAR-\\w+","JIRA-\\d+","CU-\\d+"];
             let hasTicket = patterns.some(p => new RegExp(p).test(pr.body ?? ''));
-            
-            // Get linked issues from PR body AND from GraphQL (UI links)
-            const linkedIssuesFromBody = extractLinkedIssuesFromBody(pr.body);
-            const linkedIssuesFromUI = await getLinkedIssuesViaGraphQL();
-            const allLinkedIssues = [...new Set([...linkedIssuesFromBody, ...linkedIssuesFromUI])];
-            
-            if (!hasTicket && allLinkedIssues.length === 0) {
+            const linkedIssues = extractLinkedIssuesFromBody(pr.body);
+            if (!hasTicket && linkedIssues.length === 0) {
                 violations.push(`Aucun ticket externe ni GitHub issue lié détecté (ex: ${patterns.slice(0,2).join(', ')})`);
             }
         }
