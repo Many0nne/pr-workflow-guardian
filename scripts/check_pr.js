@@ -3,6 +3,8 @@ import fs from "fs";
 import yaml from "js-yaml";
 import path from "path";
 
+const COMMENT_MARKER = "<!-- guardian-comment -->";
+
 const token = process.env.GITHUB_TOKEN;
 if (!token) {
   console.error("GITHUB_TOKEN missing");
@@ -25,6 +27,46 @@ const octokit = new Octokit({ auth: token });
 const [owner, repo] = process.env.GITHUB_REPOSITORY.split(':')[0].split('/');
 // GITHUB_REF format for PR: refs/pull/NUMBER/merge
 const prNumber = parseInt(process.env.GITHUB_REF.split('/')[2]);
+
+async function findGuardianComment() {
+  const { data: comments } = await octokit.issues.listComments({
+    owner,
+    repo,
+    issue_number: prNumber,
+  });
+  return comments.find(c => c.body.includes(COMMENT_MARKER));
+}
+
+async function postOrUpdateComment(message) {
+  const existingComment = await findGuardianComment();
+  
+  if (existingComment) {
+    await octokit.issues.updateComment({
+      owner,
+      repo,
+      comment_id: existingComment.id,
+      body: message,
+    });
+  } else {
+    await octokit.issues.createComment({
+      owner,
+      repo,
+      issue_number: prNumber,
+      body: message,
+    });
+  }
+}
+
+async function deleteGuardianComment() {
+  const existingComment = await findGuardianComment();
+  if (existingComment) {
+    await octokit.issues.deleteComment({
+      owner,
+      repo,
+      comment_id: existingComment.id,
+    });
+  }
+}
 
 async function main() {
   const { data: pr } = await octokit.pulls.get({
@@ -68,11 +110,21 @@ async function main() {
     violations.push("Aucun label de type valide présent");
   }
 
-  // Publish result
+  // Publish result - post comment and fail CI if violations
   if (violations.length > 0) {
+    const message = `${COMMENT_MARKER}
+❌ **Merge bloqué par guardian**
+
+Règles non respectées :
+${violations.map(v => `- ${v}`).join("\n")}
+
+Action requise : corriger les points ci-dessus avant de merger`;
+    
+    await postOrUpdateComment(message);
     console.error("Merge bloqué par guardian\nRègles non respectées :\n- " + violations.join("\n- ") + "\nAction requise : corriger les points ci-dessus avant de merger");
     process.exit(1);
   } else {
+    await deleteGuardianComment();
     console.log("PR conforme au guardian ✅");
   }
 }
