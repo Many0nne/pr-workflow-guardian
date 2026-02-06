@@ -12,6 +12,10 @@ Guardian PR is a GitHub Action tool designed to block merges of PRs that don't c
 - **Ticket References** – PR must reference a ticket/issue (optional, supports multiple patterns)
 - **No Active Changes Requested** – All review feedback must be resolved
 
+## Planned Features
+
+- **Issue Assignment Detection (GitHub App)** – Future integration with a GitHub App to automatically detect and validate issue assignments directly in the GitHub UI, streamlining the workflow without requiring manual configuration.
+
 ## Consequences of Non-Compliance
 
 If a PR doesn't respect these rules:
