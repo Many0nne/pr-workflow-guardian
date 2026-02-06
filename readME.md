@@ -4,7 +4,6 @@ Guardian PR is a GitHub Action tool designed to block merges of PRs that don't c
 
 ## What Guardian Checks
 
-- PR is not in draft status
 - Description is present and conforms to the template
 - At least X approvals (configurable)
 - At least one valid type label present
@@ -99,7 +98,6 @@ If all rules are respected:
 
 ## Rules Controlled by Guardian
 
-- **Draft Check** – The PR must not be in draft
 - **Description Check** – The PR must include the defined template
 - **Approval Check** – At least `approvals_required` approvals must exist
 - **Type Label Check** – At least one valid type label must be present
