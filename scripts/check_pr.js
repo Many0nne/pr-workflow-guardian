@@ -153,8 +153,10 @@ async function main() {
         if (config.require_ci_pass) {
             try {
                 const { data: checkRuns } = await octokit.checks.listForRef({ owner, repo, ref: pr.head.sha });
-                const failed = checkRuns.check_runs.filter(c => c.status === 'completed' && c.conclusion !== 'success');
-                const pending = checkRuns.check_runs.filter(c => c.status !== 'completed');
+                const currentJob = process.env.GITHUB_JOB || 'check-pr';
+                const filtered = checkRuns.check_runs.filter(c => c.name !== currentJob);
+                const failed = filtered.filter(c => c.status === 'completed' && c.conclusion !== 'success');
+                const pending = filtered.filter(c => c.status !== 'completed');
                 if (pending.length) softViolations.push(`Checks en attente: ${pending.map(c => c.name).join(", ")}`);
                 if (failed.length) violations.push(`Checks échoués: ${failed.map(c => `${c.name} (${c.conclusion})`).join(", ")}`);
             } catch {}
